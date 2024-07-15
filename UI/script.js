@@ -1,5 +1,58 @@
-// console.log(fetch("http://127.0.0.1:8000/"))
-fetch("http://127.0.0.1:8000/")
+let csrfToken = '';
+
+document.addEventListener('DOMContentLoaded',function(){
+    getSession();
+})
+
+
+
+
+function getCSRF() {
+    fetch('http://localhost:8000/csrf', {
+      // headers: {
+          //     'Sec-Fetch-Site': 'same-site',
+      //     'Access-Control-Allow-Origin':'*'
+      
+      //     // Other headers if needed`
+      //   },
+      credentials: 'include',
+    })
+    .then(response => {
+      csrfToken = response.headers.get('X-CSRFToken');
+      //   console.log(csrfToken);
+      return csrfToken
+    })
+}
+
+function getSession() {
+    fetch('http://localhost:8000/session', {
+        credentials:'include'
+    })
+    .then(response => response.json())
+    .then(
+        getCSRF()
+    )
+}
+
+const formel = document.getElementById('myForm')
+
+formel.addEventListener('submit',(event)=>{
+
+    event.preventDefault();
+
+    fetch('http://localhost:8000/new',{
+        method:'POST',
+        headers:{
+            'Content-Type':'application/json',
+            'X-CSRFToken':csrfToken,
+        },
+        credentials:'include',
+        body:JSON.stringify({'hello':'jello'})
+    })
+})
+
+
+fetch("http://127.0.0.1:8000/getdata")
     .then(response => response.json())
     .then(msg => inserData(JSON.parse(msg.data)))
 
@@ -26,5 +79,3 @@ function inserData(msg) {
         table_R.appendChild(tr);
      }
 }
-
-
