@@ -1,81 +1,144 @@
-let csrfToken = '';
+let csrfToken = "";
 
-document.addEventListener('DOMContentLoaded',function(){
-    getSession();
-})
+document.addEventListener("DOMContentLoaded", getSession);
 
-
-
-
-function getCSRF() {
-    fetch('http://localhost:8000/csrf', {
-      // headers: {
-          //     'Sec-Fetch-Site': 'same-site',
-      //     'Access-Control-Allow-Origin':'*'
-      
-      //     // Other headers if needed`
-      //   },
-      credentials: 'include',
-    })
-    .then(response => {
-      csrfToken = response.headers.get('X-CSRFToken');
-      //   console.log(csrfToken);
-      return csrfToken
-    })
+async function getCSRF() {
+  const response = await fetch("http://localhost:8000/csrf", {
+    credentials: "include",
+  });
+  csrfToken = response.headers.get("X-CSRFToken");
+  return csrfToken;
 }
 
-function getSession() {
-    fetch('http://localhost:8000/session', {
-        credentials:'include'
-    })
-    .then(response => response.json())
-    .then(
-        getCSRF()
-    )
+async function getSession() {
+  const response = await fetch("http://localhost:8000/session", {
+    credentials: "include",
+  });
+  const data = await response.json();
+  await getCSRF();
 }
 
-const formel = document.getElementById('myForm')
+const form = document.getElementById("myForm");
 
-formel.addEventListener('submit',(event)=>{
+form.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const formData = new FormData(form);
+  // const searchParams = new URLSearchParams(newform).toString();
 
-    event.preventDefault();
+  const jsonString = JSON.stringify(Object.fromEntries(formData));
 
-    fetch('http://localhost:8000/new',{
-        method:'POST',
-        headers:{
-            'Content-Type':'application/json',
-            'X-CSRFToken':csrfToken,
-        },
-        credentials:'include',
-        body:JSON.stringify({'hello':'jello'})
-    })
-})
+  // console.log(searchParams.toString());
+  try {
+    const response = await fetch("http://localhost:8000/new", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-CSRFToken": csrfToken,
+      },
+      credentials: "include",
+      body: jsonString,
+    });
+    console.log(response);
+  } catch (error) {
+    console.error(error);
+  }
+});
 
+async function fetchData() {
+  try {
+    const response = await fetch("http://127.0.0.1:8000/getdata");
+    const data = await response.json();
+    inserData(JSON.parse(data.data));
+  } catch (error) {
+    console.error(error);
+  }
+}
 
-fetch("http://127.0.0.1:8000/getdata")
-    .then(response => response.json())
-    .then(msg => inserData(JSON.parse(msg.data)))
+fetchData();
 
+const table = document.getElementById("to-do-table");
+const tableHead = table.querySelector("thead");
+const tableBody = table.querySelector("tbody");
 
-const table = document.getElementById("to-do-table")
-const table_H = table.querySelector("thead")
-const table_R = table.querySelector("tbody")
+function inserData(data) {
+  const headers = Object.keys(data[0].fields);
+  data.forEach((item) => {
+    const row = document.createElement("tr");
 
-function inserData(msg) {
+    // console.log(item);
 
-    const msg_data = Object.keys(msg[0].fields)
-    console.log(msg[0].fields);
+    headers.forEach((header) => {
+      if (header !== "created") {
+        const cell = document.createElement("td");
+        if (header === "status") {
+          const select = document.createElement("select");
 
-    for (let i = 0; i < msg.length; i++){
-        var tr = document.createElement('tr');
-
-        msg_data.forEach((key) =>{
-            if (key != "created"){
-            var td = document.createElement('td');
-            td.innerHTML = msg[i].fields[key];
-            tr.appendChild(td)
+          select.classList = "tododd";
+          const options = ["To Do", "Doing", "Done"];
+          options.forEach((option) => {
+            const opt = document.createElement("option");
+            opt.value = option;
+            opt.textContent = option;
+            if (option === item.fields[header]) {
+              opt.selected = true;
+            }
+            select.appendChild(opt);
+          });
+          select.addEventListener("change", (event) => updateStatus(item.pk,event));
+          cell.appendChild(select);
+        } else {
+          cell.textContent = item.fields[header];
         }
-        });
-        table_R.appendChild(tr);
-     }
+        row.appendChild(cell);
+      }
+    });
+    tableBody.appendChild(row);
+  });
+}
+
+
+async function updateStatus(ID, event){
+
+    const Status = event.target.value
+
+    if(Status === "Done"){
+
+        const url = `http://localhost:8000/delete/${ID}`
+
+        try {
+            const response = await fetch(url, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "X-CSRFToken": csrfToken,
+            },
+            credentials: "include",
+            });
+            const data = await response.json();
+            console.log(data.Status);
+        } catch (error) {
+            console.error(error);
+        }
+    }
+
+    else {
+        const url = `http://localhost:8000/update/${ID}/${Status}`
+    
+        try {
+            const response = await fetch(url, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "X-CSRFToken": csrfToken,
+              },
+              credentials: "include",
+            });
+            const data = await response.json();
+            console.log(data.Status);
+          } catch (error) {
+            console.error(error);
+          }
+
+    }
+
 }
